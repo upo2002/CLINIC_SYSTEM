@@ -1,0 +1,288 @@
+import java.util.*;
+import java.io.*;
+
+class Person {
+    private String name;
+    private String contact;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getContact() {
+        return contact;
+    }
+
+    public void setContact(String contact) {
+        this.contact = contact;
+    }
+}
+
+class Doctor extends Person {
+    private String specialization;
+    private Set<String> availableSlots = new HashSet<>();
+
+    public String getSpecialization() {
+        return specialization;
+    }
+
+    public void setSpecialization(String specialization) {
+        this.specialization = specialization;
+    }
+
+    public boolean isAvailable(String date, String time) {
+        return availableSlots.contains(date + " " + time);
+    }
+
+    public void addSlot(String date, String time) {
+        availableSlots.add(date + " " + time);
+    }
+
+    public void removeSlot(String date, String time) {
+        availableSlots.remove(date + " " + time);
+    }
+
+    public void displayAvailability() {
+        System.out.println(getName() + " - Available slots:");
+        if (availableSlots.isEmpty()) {
+            System.out.println("No available slots.");
+        } else {
+            for (String slot : availableSlots) {
+                System.out.println(slot);
+            }
+        }
+    }
+}
+
+class GeneralPractitioner extends Doctor {
+    @Override
+    public void displayAvailability() {
+        System.out.println(getName() + " - Available for walk-in patients.");
+        super.displayAvailability();
+    }
+}
+
+class Specialist extends Doctor {
+    @Override
+    public void displayAvailability() {
+        System.out.println(getName() + " - Appointment confirmation required.");
+        super.displayAvailability();
+    }
+
+    public void requireAppointmentConfirmation() {
+        System.out.println("Sending appointment confirmation email...");
+    }
+}
+
+class Patient extends Person {
+    private String medicalHistory;
+
+    public String getMedicalHistory() {
+        return medicalHistory;
+    }
+
+    public void setMedicalHistory(String medicalHistory) {
+        this.medicalHistory = medicalHistory;
+    }
+
+    public void bookAppointment(Doctor doctor, String date, String time) {
+        if (doctor.isAvailable(date, time)) {
+            doctor.removeSlot(date, time);
+            System.out.println("Appointment booked with Dr. " + doctor.getName() + " on " + date + " at " + time);
+            Appointment appointment = new Appointment(date, time, doctor, this);
+            appointment.saveAppointment();
+        } else {
+            System.out.println("Selected slot is not available.");
+        }
+    }
+}
+
+class Appointment {
+    private String date;
+    private String time;
+    private Doctor doctor;
+    private Patient patient;
+
+    public Appointment(String date, String time, Doctor doctor, Patient patient) {
+        this.date = date;
+        this.time = time;
+        this.doctor = doctor;
+        this.patient = patient;
+    }
+public void saveAppointment() {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("appointments.txt", true))) {
+            writer.write("Appointment Details:\n");
+            writer.write("Patient: " + patient.getName() + "\n");
+            writer.write("Doctor: " + doctor.getName() + "\n");
+            writer.write("Date: " + date + "\n");
+            writer.write("Time: " + time + "\n");
+            writer.write("\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+public class ClinicManagementSystem {
+    private static List<Doctor> doctors = new ArrayList<>();
+    private static List<Patient> patients = new ArrayList<>();
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        // Initialize sample doctors
+        Doctor doctor1 = new GeneralPractitioner();
+        doctor1.setName("Dr. Paul");
+        doctor1.setSpecialization("General Practice");
+        doctor1.addSlot("2024-10-01", "09:00");
+        doctor1.addSlot("2024-10-01", "10:00");
+        doctors.add(doctor1);
+
+        Doctor doctor2 = new Specialist();
+        doctor2.setName("Dr. Das");
+        doctor2.setSpecialization("Cardiology");
+        doctor2.addSlot("2024-10-01", "11:00");
+        doctor2.addSlot("2024-10-01", "12:00");
+        doctors.add(doctor2);
+
+        Doctor doctor3 = new Specialist();
+        doctor3.setName("Dr. Patel");
+        doctor3.setSpecialization("Endocrinology");
+        doctor3.addSlot("2024-10-02", "13:00");
+        doctor3.addSlot("2024-10-02", "14:00");
+        doctors.add(doctor3);
+
+        // Initialize sample patients
+        Patient patient1 = new Patient();
+        patient1.setName("Miss A");
+        patient1.setContact("123-456-7890");
+        patient1.setMedicalHistory("High Blood Pressure");
+        patients.add(patient1);
+
+        Patient patient2 = new Patient();
+        patient2.setName("Mr. Z");
+        patient2.setContact("987-654-3210");
+        patient2.setMedicalHistory("Diabetes");
+        patients.add(patient2);
+
+        int choice;
+
+        do {
+            System.out.println("\nMenu:");
+            System.out.println("1. View Doctor Availability");
+            System.out.println("2. Book Appointment");
+            System.out.println("3. Add Appointment Slot");
+            System.out.println("4. Exit");
+            System.out.print("Enter your choice: ");
+            choice = scanner.nextInt();
+            scanner.nextLine(); // Consume newline
+
+            switch (choice) {
+                case 1:
+                    System.out.println("\nDoctor Availability:");
+                    for (Doctor doctor : doctors) {
+                        doctor.displayAvailability();
+                    }
+                    break;
+                case 2:
+                    // Book appointment
+                    System.out.println("\nBook an Appointment:");
+                    System.out.print("Enter patient name: ");
+                    String patientName = scanner.nextLine();
+                    Patient selectedPatient = findPatientByName(patientName);
+                    if (selectedPatient != null) {
+                        suggestSpecialist(selectedPatient);
+                        System.out.println("Select a doctor:");
+                        for (int i = 0; i < doctors.size(); i++) {
+                            System.out.println((i + 1) + ". " + doctors.get(i).getName());
+                        }
+                        int doctorChoice = scanner.nextInt();
+                        scanner.nextLine(); // Consume newline
+                        if (doctorChoice > 0 && doctorChoice <= doctors.size()) {
+                            Doctor chosenDoctor = doctors.get(doctorChoice - 1);
+                            System.out.println("Enter appointment date (YYYY-MM-DD):");
+                            String date = scanner.nextLine();
+                            System.out.println("Enter appointment time (HH:MM):");
+                            String time = scanner.nextLine();
+                            selectedPatient.bookAppointment(chosenDoctor, date, time);
+
+                            if (chosenDoctor instanceof Specialist) {
+                                ((Specialist) chosenDoctor).requireAppointmentConfirmation();
+                            }
+                        } else {
+                            System.out.println("Invalid doctor choice.");
+                        }
+                    } else {
+                        System.out.println("Patient not found.");
+                    }
+                    break;
+                case 3:
+                    // Add appointment slot
+                    System.out.println("\nAdd Appointment Slot:");
+                    System.out.print("Enter doctor name: ");
+                    String doctorName = scanner.nextLine();
+                    Doctor chosenDoctor = findDoctorByName(doctorName);
+                    if (chosenDoctor != null) {
+                        System.out.print("Enter appointment date (YYYY-MM-DD): ");
+                        String date = scanner.nextLine();
+                        System.out.print("Enter appointment time (HH:MM): ");
+                        String time = scanner.nextLine();
+                        chosenDoctor.addSlot(date, time);
+                        System.out.println("Slot added successfully!");
+                    } else {
+                        System.out.println("Invalid doctor name.");
+                    }
+                    break;
+                case 4:
+                    System.out.println("Exiting...");
+                    break;
+                default:
+                    System.out.println("Invalid choice.");
+            }
+        } while (choice != 4);
+
+        scanner.close();
+    }
+
+    private static void suggestSpecialist(Patient patient) {
+        String medicalHistory = patient.getMedicalHistory().toLowerCase();
+        System.out.println("Based on your medical history, we suggest the following specialists:");
+
+        boolean found = false;
+        for (Doctor doctor : doctors) {
+            if (doctor instanceof Specialist) {
+                Specialist specialist = (Specialist) doctor;
+                String specialization = specialist.getSpecialization().toLowerCase();
+                if (medicalHistory.contains(specialization)) {
+                    System.out.println("- Dr. " + specialist.getName() + " (Specialization: " + specialist.getSpecialization() + ")");
+                    found = true;
+                }
+            }
+        }
+
+        if (!found) {
+            System.out.println("No specific specialist found. Please consult a general practitioner.");
+        }
+    }
+
+    private static Doctor findDoctorByName(String name) {
+        for (Doctor doctor : doctors) {
+            if (doctor.getName().equalsIgnoreCase(name)) {
+                return doctor;
+            }
+        }
+        return null;
+    }
+ private static Patient findPatientByName(String name) {
+        for (Patient patient : patients) {
+            if (patient.getName().equalsIgnoreCase(name)) {
+                return patient;
+            }
+        }
+        return null;
+    }
+}
